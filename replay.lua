@@ -13,7 +13,11 @@ function replay.add_episode(state_hist,action_hist,reward_hist)
     replay_index = (replay_index % replay_size) + 1
     replay_table[replay_index] = {}
     replay_table[replay_index].states = state_hist:clone()
-    replay_table[replay_index].actions = action_hist:clone()
+    --actions are factored, and thus in a table
+    replay_table[replay_index].actions = {}
+    for a = 1,#action_hist do
+        replay_table[replay_index].actions[a] = action_hist[a]:clone()
+    end
     replay_table[replay_index].rewards = reward_hist:clone()
     replay_table[replay_index].length = state_hist:size()[1]
 end
@@ -33,16 +37,20 @@ function replay.get_minibatch(mb_size)
     indices = indices:index(1,ordering:long())
     for i = 1,mb_size do
         local entry = replay_table[indices[i]]
-        print(entry.rewards)
         for j=1,entry.length do
             if not episodes[j] then
                 episodes[j] = {}
                 episodes[j].state = entry.states[{{j}}]
-                episodes[j].action = entry.actions[{{j}}]
+                episodes[j].action = {}
+                for a=1,#entry.actions do
+                    episodes[j].action[a] = entry.actions[a][{{j}}]
+                end
                 episodes[j].reward = entry.rewards[{{j}}]
             else
                 episodes[j].state = episodes[j].state:cat(entry.states[{{j}}],1)
-                episodes[j].action = episodes[j].action:cat(entry.actions[{{j}}],1)
+                for a=1,#entry.actions do
+                    episodes[j].action[a] = episodes[j].action[a]:cat(entry.actions[a][{{j}}],1)
+                end
                 episodes[j].reward = episodes[j].reward:cat(entry.rewards[{{j}}],1)
             end
         end
