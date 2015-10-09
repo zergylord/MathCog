@@ -12,14 +12,14 @@ require 'optim'
 require 'math'
 replay = require 'replay'
 model = require 'model.basic_rec_act'
-env = require 'env.dummy'
+env = require 'env.token'
 local max_steps,num_dim,num_actions = env.get_hyper()
 network = model.create(num_dim,num_actions)
 w,dw = network:getParameters()
 network:zeroGradParameters()
 local net_clones = util.clone_many_times(network,max_steps)
 
-
+local timer = torch.Timer()
 local mb_size = 32
 local replay_size = 100
 replay.init(replay_size)
@@ -75,8 +75,7 @@ local optim_state = {learningRate = 1e-4}
 local max_iter = 1e4
 local net_loss = 0
 local r = 0
-local state = env.init()
-local rec_state = model.prep_rec_state(1)
+local cum = 0
 for iter = 1,max_iter do
     local state_hist = torch.zeros(max_steps,num_dim)
     local action_hist = {}
@@ -86,6 +85,8 @@ for iter = 1,max_iter do
     local reward_hist = torch.zeros(max_steps,1)
     local t = 0
     local term = false
+    local state = env.init()
+    local rec_state = model.prep_rec_state(1)
     while t<max_steps and not term do
         t = t + 1
         local total_state = {state}
@@ -94,6 +95,9 @@ for iter = 1,max_iter do
         end
         local outputs = network:forward(total_state)
         actions = model.sample_actions(outputs)
+        if env.force_actions then
+            actions = env.force_actions() or actions
+        end
         rec_state = model.prep_rec_state(1,outputs,actions)
 
         state_hist[t] = state
@@ -102,13 +106,20 @@ for iter = 1,max_iter do
         end
         state,r,term = env.step(actions)
         reward_hist[t] = r
+        cum = cum + r[1][1]
     end
     for a =1,(#num_actions)[1] do
         action_hist[a] = action_hist[a][{{1,t},{}}]
     end
     replay.add_episode(state_hist[{{1,t},{}}],action_hist,reward_hist[{{1,t},{}}])
     if iter >= mb_size then
-        _,net_loss = optim.rmsprop(feval,w,optim_state)
-        print(net_loss[1])
+        _,cur_loss = optim.rmsprop(feval,w,optim_state)
+        net_loss = net_loss + cur_loss[1]
+        if iter % 500 == 0 then
+            print(iter,cum,net_loss,timer:time().real)
+            net_loss = 0
+            cum = 0
+            timer:reset()
+        end
     end
 end
