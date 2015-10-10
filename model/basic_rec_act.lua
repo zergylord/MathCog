@@ -29,11 +29,12 @@ function model.create(n_d,n_act)
         table.insert(out_pools,nn.LogSoftMax()(nn.Linear(num_hid,num_actions[a])(hid)))
     end
     table.insert(out_pools,hid)
+    local baseline = nn.Linear(num_hid,1)(hid)
+    table.insert(out_pools,baseline)
 
     local network = nn.gModule(pools,out_pools)
     return network
 end
-local nll_crit = nn.ClassNLLCriterion()
 function model.prep_rec_state(mb_size,outputs,actions)
     local act_vec = {}
     for a = 1,act_factors do
@@ -55,18 +56,25 @@ function model.prep_rec_state(mb_size,outputs,actions)
     end
 end
 
+local nll_crit = nn.ClassNLLCriterion()
+local mse_crit = nn.MSECriterion()
 function model.prep_grads(mb_size,outputs,actions,R,prev_grads)
     local grad = {}
     local loss = 0
+    local b = outputs[act_factors+2]
     for a =1,act_factors do
         loss = loss + nll_crit:forward(outputs[a],actions[a][{{},1}])
         grad[a] = nll_crit:backward(outputs[a],actions[a][{{},1}]):clone()
-        grad[a]:cmul(R:repeatTensor(1,grad[a]:size()[2]))
+        grad[a]:cmul((R-b):repeatTensor(1,grad[a]:size()[2]))
     end
     grad[act_factors+1] = torch.zeros(mb_size,num_hid)
+    --recurrent
     if prev_grads then
         grad[act_factors+1][{{1,prev_grads[2]:size()[1]},{}}] = prev_grads[2]
     end
+    --baseline
+    loss = loss + mse_crit:forward(b,R)
+    grad[act_factors+2] = mse_crit:backward(b,R)
     return loss,grad
 end
 
