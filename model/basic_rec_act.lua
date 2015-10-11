@@ -8,6 +8,7 @@ require 'nn'
 local model = {} 
 local num_dim,num_actions,act_factors
 local num_hid = 7
+local base_lr = .5 --percent of learning rate for baseline
 function model.create(n_d,n_act)
     num_dim = n_d
     num_actions = n_act
@@ -74,7 +75,7 @@ function model.prep_grads(mb_size,outputs,actions,R,prev_grads)
     end
     --baseline
     loss = loss + mse_crit:forward(b,R)
-    grad[act_factors+2] = mse_crit:backward(b,R)
+    grad[act_factors+2] = mse_crit:backward(b,R):mul(base_lr)
     return loss,grad
 end
 

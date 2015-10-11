@@ -1,0 +1,28 @@
+###############################################################################################################
+#####  ProFi, a lua profiler. This profile was generated on: Sat Oct 10 16:00:13 2015
+#####  ProFi is created by Luke Perkin 2012 under the MIT Licence, www.locofilm.co.uk
+#####  Version 1.3. Get the most recent version at this gist: https://gist.github.com/2838755
+###############################################################################################################
+
+| TOTAL TIME = 0.002226
+| FILE                                              : FUNCTION                                : LINE                : TIME        : RELATIVE    : CALLED      |
+| ./catch.lua                                       : step                                    :   31                : 0.002       : 81.90%      :      37     |
+| ./catch.lua                                       : render                                  :   15                : 0.001       : 37.47%      :      38     |
+| ./catch.lua                                       : init                                    :   21                : 0.000       : 5.71%       :       1     |
+| ...zergylord/torch/install/share/lua/5.1/pl/import: __index                                 :   59                : 0.000       : 0.13%       :       1     |
+| /home/zergylord/MathCog/ProFi.lua                 : shouldReturn                            :  199                : 0.000       : 0.09%       :       1     |
+| [C]                                               : Tensor                                  :   -1                : 0.000       : 0.00%       :      37     |
+| /home/zergylord/MathCog/ProFi.lua                 : startHooks                              :  234                : 0.000       : 0.00%       :       0     |
+| [C]                                               : min                                     :   -1                : 0.000       : 0.00%       :      37     |
+| [C]                                               : reshape                                 :   -1                : 0.000       : 0.00%       :      38     |
+| /home/zergylord/MathCog/ProFi.lua                 : stop                                    :   85                : 0.000       : 0.00%       :       1     |
+| [C]                                               : __index                                 :   -1                : 0.000       : 0.00%       :     113     |
+| [C]                                               : __newindex                              :   -1                : 0.000       : 0.00%       :      77     |
+| [C]                                               : zeros                                   :   -1                : 0.000       : 0.00%       :      75     |
+| /home/zergylord/MathCog/ProFi.lua                 : start                                   :   67                : 0.000       : 0.00%       :       0     |
+| [C]                                               : getTime                                 :   -1                : 0.000       : 0.00%       :       2     |
+| /home/zergylord/MathCog/ProFi.lua                 : stopHooks                               :  238                : 0.000       : 0.00%       :       1     |
+| [C]                                               : random                                  :   -1                : 0.000       : 0.00%       :       2     |
+| [C]                                               : unpack                                  :   -1                : 0.000       : 0.00%       :      38     |
+| [C]                                               : anonymous                               :   -1                : 0.000       : 0.00%       :     304     |
+| [C]                                               : sethook                                 :   -1                : 0.000       : 0.00%       :       1     |

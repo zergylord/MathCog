@@ -12,7 +12,13 @@ require 'optim'
 require 'math'
 replay = require 'replay'
 model = require 'model.basic_rec_act'
+local profile = false
+if profile then
+    ProFi = require 'ProFi'
+    ProFi:start()
+end
 env = require 'env.token'
+--env = require 'env.catch'
 local max_steps,num_dim,num_actions = env.get_hyper()
 network = model.create(num_dim,num_actions)
 w,dw = network:getParameters()
@@ -69,10 +75,12 @@ function feval(x)
         loss,grad = model.prep_grads(cur_size,output_hist[t],data[t].action,R[{{1,cur_size}}],prev_grad)
         prev_grad = net_clones[t]:backward(state_hist[t],grad)
     end  
+    --clip gradients
+    dw:clamp(-5,5)
     return loss,dw
 end
 local optim_state = {learningRate = 1e-4}
-local max_iter = 1e4
+local max_iter = 1e5
 local net_loss = 0
 local r = 0
 local cum = 0
@@ -115,11 +123,15 @@ for iter = 1,max_iter do
     if iter >= mb_size then
         _,cur_loss = optim.rmsprop(feval,w,optim_state)
         net_loss = net_loss + cur_loss[1]
-        if iter % 500 == 0 then
-            print(iter,cum,net_loss,timer:time().real)
+        if iter % 1000 == 0 then
+            print(iter,cum,net_loss,dw:norm(),timer:time().real)
             net_loss = 0
             cum = 0
             timer:reset()
         end
     end
+end
+if profile then
+    ProFi:stop()
+    ProFi:writeReport('train_report.txt')
 end
