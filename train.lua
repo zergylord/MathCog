@@ -26,8 +26,8 @@ network:zeroGradParameters()
 local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
-local mb_size = 32
-local replay_size = 100
+local mb_size = 1
+local replay_size = 1
 replay.init(replay_size)
 --[[
 for i=1,150 do
@@ -76,7 +76,7 @@ function feval(x)
         prev_grad = net_clones[t]:backward(state_hist[t],grad)
     end  
     --clip gradients
-    dw:clamp(-5,5)
+    dw:clamp(-1,1)
     return loss,dw
 end
 local optim_state = {learningRate = 1e-4}
@@ -123,7 +123,7 @@ for iter = 1,max_iter do
     if iter >= mb_size then
         _,cur_loss = optim.rmsprop(feval,w,optim_state)
         net_loss = net_loss + cur_loss[1]
-        if iter % 1000 == 0 then
+        if iter % 10 == 0 then
             print(iter,cum,net_loss,dw:norm(),timer:time().real)
             net_loss = 0
             cum = 0
