@@ -26,8 +26,9 @@ network:zeroGradParameters()
 local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
-local mb_size = 1
-local replay_size = 1
+local mb_size = 32
+local replay_size = 10000
+local burn_in = 500
 replay.init(replay_size)
 --[[
 for i=1,150 do
@@ -72,7 +73,7 @@ function feval(x)
         local cur_size = reward_hist[t]:size()[1]
         R[{{1,cur_size}}] = R[{{1,cur_size}}] + reward_hist[t]
         local grad
-        loss,grad = model.prep_grads(cur_size,output_hist[t],data[t].action,R[{{1,cur_size}}],prev_grad)
+        loss,grad = model.prep_grads(cur_size,output_hist[t],data[t].action,data[t].prob,R[{{1,cur_size}}],prev_grad)
         prev_grad = net_clones[t]:backward(state_hist[t],grad)
     end  
     --clip gradients
@@ -90,6 +91,7 @@ for iter = 1,max_iter do
     for a =1,(#num_actions)[1] do
         action_hist[a] = torch.zeros(max_steps,1)
     end
+    local prob_hist = torch.zeros(max_steps,(#num_actions)[1])
     local reward_hist = torch.zeros(max_steps,1)
     local t = 0
     local term = false
@@ -102,7 +104,8 @@ for iter = 1,max_iter do
             table.insert(total_state,rec_state[e])
         end
         local outputs = network:forward(total_state)
-        actions = model.sample_actions(outputs)
+        local actions,probs = model.sample_actions(outputs)
+        prob_hist[t] = probs:clone()
         if env.force_actions then
             actions = env.force_actions() or actions
         end
@@ -119,15 +122,16 @@ for iter = 1,max_iter do
     for a =1,(#num_actions)[1] do
         action_hist[a] = action_hist[a][{{1,t},{}}]
     end
-    replay.add_episode(state_hist[{{1,t},{}}],action_hist,reward_hist[{{1,t},{}}])
-    if iter >= mb_size then
+    replay.add_episode(state_hist[{{1,t},{}}],action_hist,prob_hist[{{1,t},{}}],reward_hist[{{1,t},{}}])
+    if iter >= burn_in then
         _,cur_loss = optim.rmsprop(feval,w,optim_state)
         net_loss = net_loss + cur_loss[1]
-        if iter % 10 == 0 then
+        if iter % 1000 == 0 then
             print(iter,cum,net_loss,dw:norm(),timer:time().real)
             net_loss = 0
             cum = 0
             timer:reset()
+            collectgarbage()
         end
     end
 end

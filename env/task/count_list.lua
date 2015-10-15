@@ -35,7 +35,7 @@ function task.step(state,act,say,prev_said)
     else
         command_steps = command_steps -1
     end
-    print(timer:time().real)
+    --print(timer:time().real)
     return r,term
 end
 return task

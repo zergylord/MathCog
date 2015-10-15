@@ -8,9 +8,20 @@ function replay.init(r_size)
     replay_index = 0
     replay_table = {}
 end
+local worst_val = 1/0
+local worst_ind = 1
 --each *_hist var should be a tensor of dim <time,data size>
-function replay.add_episode(state_hist,action_hist,reward_hist)
+function replay.add_episode(state_hist,action_hist,prob_hist,reward_hist)
     replay_index = (replay_index % replay_size) + 1
+    --[[insert the best----
+    if #replay_table > replay_index then
+        if worst_val > reward_hist:sum() then
+            return
+        else
+            replay_index = worst_ind
+        end
+    end
+    --]]-------------------
     replay_table[replay_index] = {}
     replay_table[replay_index].states = state_hist:clone()
     --actions are factored, and thus in a table
@@ -18,6 +29,8 @@ function replay.add_episode(state_hist,action_hist,reward_hist)
     for a = 1,#action_hist do
         replay_table[replay_index].actions[a] = action_hist[a]:clone()
     end
+    replay_table[replay_index].probs = prob_hist:clone()
+    --print('hist:',action_hist,prob_hist,reward_hist)
     replay_table[replay_index].rewards = reward_hist:clone()
     replay_table[replay_index].length = state_hist:size()[1]
 end
@@ -46,12 +59,14 @@ function replay.get_minibatch(mb_size)
                     episodes[j].action[a] = entry.actions[a][{{j}}]
                 end
                 episodes[j].reward = entry.rewards[{{j}}]
+                episodes[j].prob = entry.probs[{{j}}]
             else
                 episodes[j].state = episodes[j].state:cat(entry.states[{{j}}],1)
                 for a=1,#entry.actions do
                     episodes[j].action[a] = episodes[j].action[a]:cat(entry.actions[a][{{j}}],1)
                 end
                 episodes[j].reward = episodes[j].reward:cat(entry.rewards[{{j}}],1)
+                episodes[j].prob = episodes[j].prob:cat(entry.probs[{{j}}],1)
             end
         end
     end

@@ -59,7 +59,7 @@ end
 
 local nll_crit = nn.ClassNLLCriterion()
 local mse_crit = nn.MSECriterion()
-function model.prep_grads(mb_size,outputs,actions,R,prev_grads)
+function model.prep_grads(mb_size,outputs,actions,probs,R,prev_grads)
     local grad = {}
     local loss = 0
     local b = outputs[act_factors+2]
@@ -67,6 +67,11 @@ function model.prep_grads(mb_size,outputs,actions,R,prev_grads)
         loss = loss + nll_crit:forward(outputs[a],actions[a][{{},1}])
         grad[a] = nll_crit:backward(outputs[a],actions[a][{{},1}]):clone()
         grad[a]:cmul((R-b):repeatTensor(1,grad[a]:size()[2]))
+        --importance sampling
+        local cur_prob = outputs[a]:gather(2,actions[a]:long()):exp()
+        cur_prob:cdiv(probs[{{},a}]):cmin(10) --truncated IS
+        grad[a]:cmul(cur_prob:repeatTensor(1,grad[a]:size()[2]))
+        --]]
     end
     grad[act_factors+1] = torch.zeros(mb_size,num_hid)
     --recurrent
@@ -81,9 +86,11 @@ end
 
 function model.sample_actions(outputs)
     actions = {}
+    probs = torch.zeros(act_factors)
     for a = 1,act_factors do
         actions[a] = torch.multinomial(torch.exp(outputs[a]),1)
+        probs[a] = torch.exp(outputs[a][{{},actions[a][1][1]}])
     end
-    return actions
+    return actions,probs
 end
 return model
