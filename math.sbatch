@@ -8,9 +8,6 @@
 #a file for job output, you can check job progress
 #SBATCH --output=IMB4.out
 #################
-# a file for errors from the job
-#SBATCH --error=IMB4.err
-#################
 #time you think you need; default is one hour
 #in minutes in this case
 #SBATCH --time=2:00
@@ -30,10 +27,11 @@
 # --cpus-per-tasks=16" instead
 #SBATCH --ntasks-per-node=1
 #################
-
+#SBATCH -n 1
 #now run normal batch commands
 #module load openmpi/1.6.5/intel13sp1up1
 
 #run Intel MPI Benchmarks with mpirun
 #srun /usr/mpi/intel-13/openmpi-1.6.5-1/tests/IMB-3.2.4/IMB-MPI1
-srun th train.lua
+#srun th train.lua
+srun th foo.lua

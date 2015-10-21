@@ -27,7 +27,7 @@ local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
 local mb_size = 32
-local replay_size = 10000
+local replay_size = 1000
 local burn_in = 500
 replay.init(replay_size)
 --[[
@@ -81,7 +81,7 @@ function feval(x)
     return loss,dw
 end
 local optim_state = {learningRate = 1e-4}
-local max_iter = 1e5
+local max_iter = 1e6
 local net_loss = 0
 local r = 0
 local cum = 0

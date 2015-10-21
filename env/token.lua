@@ -2,7 +2,7 @@ local env = {}
 --local task = require 'env.task.add'
 local task = require 'env.task.count_list'
 
-local max_add = 2
+local max_add = 10
 --add token, subtract token, do nothing
 local num_act = 3
 --count range + done + command words ('plus','how many?','give','tokens')
