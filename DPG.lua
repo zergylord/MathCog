@@ -11,7 +11,7 @@ require 'nngraph'
 require 'optim'
 require 'math'
 replay = require 'replay'
-model = require 'model.rec_softmax_RE'
+model = require 'model.basic_rec_act'
 local profile = false
 if profile then
     ProFi = require 'ProFi'
@@ -27,7 +27,7 @@ local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
 local mb_size = 32
-local replay_size = 1000
+local replay_size = 10000
 local burn_in = 500
 replay.init(replay_size)
 --[[
@@ -59,24 +59,29 @@ function feval(x)
             table.insert(state,rec_state[e])
         end
         local outputs = net_clones[t]:forward(state)
-        local cur_size = data[t].state:size()[1]
-        if t>1 and model.prep_td then
-            model.prep_td(data[t-1].reward[{{1,cur_size}}],outputs)
-        end
         if t+1 <= last_step then
             rec_state = model.prep_rec_state(data[t+1].state:size()[1],outputs,data[t].action)
         end
         state_hist[t] = state
         output_hist[t] = outputs
+        reward_hist[t] = data[t].reward
     end
     --backward pass through episode
-    loss = model.prep_grads(net_clones,mb_size,last_step,state_hist,output_hist,data)
+    local R = torch.zeros(mb_size,1) 
+    local prev_grad
+    for t = last_step,1,-1 do
+        local cur_size = reward_hist[t]:size()[1]
+        R[{{1,cur_size}}] = R[{{1,cur_size}}] + reward_hist[t]
+        local grad
+        loss,grad = model.prep_grads(cur_size,output_hist[t],data[t].action,data[t].prob,R[{{1,cur_size}}],prev_grad)
+        prev_grad = net_clones[t]:backward(state_hist[t],grad)
+    end  
     --clip gradients
     --dw:clamp(-1,1)
     return loss,dw
 end
 local optim_state = {learningRate = 1e-4}
-local max_iter = 1e6
+local max_iter = 1e5
 local net_loss = 0
 local r = 0
 local cum = 0
@@ -100,6 +105,9 @@ for iter = 1,max_iter do
         end
         local outputs = network:forward(total_state)
         local actions,probs = model.sample_actions(outputs)
+        if iter % 1000 == 0 then
+            print(probs)
+        end
         prob_hist[t] = probs:clone()
         if env.force_actions then
             actions = env.force_actions() or actions
@@ -117,12 +125,23 @@ for iter = 1,max_iter do
     for a =1,(#num_actions)[1] do
         action_hist[a] = action_hist[a][{{1,t},{}}]
     end
+    local total_reward = reward_hist:sum() 
+    if total_reward == 1 then
+    --    print('|')
+    elseif total_reward == 2 then
+    --    print('||')
+    elseif total_reward == 3 then
+        print('|||')
+    elseif total_reward == 4 then
+        print('||||')
+    end
+
     replay.add_episode(state_hist[{{1,t},{}}],action_hist,prob_hist[{{1,t},{}}],reward_hist[{{1,t},{}}])
     if iter >= burn_in then
         _,cur_loss = optim.rmsprop(feval,w,optim_state)
         net_loss = net_loss + cur_loss[1]
         if iter % 1000 == 0 then
-            print(iter,cum,net_loss,dw:norm(),w:norm(),timer:time().real)
+            print(iter,cum,net_loss,dw:norm(),timer:time().real)
             net_loss = 0
             cum = 0
             timer:reset()

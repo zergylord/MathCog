@@ -59,29 +59,36 @@ end
 
 local nll_crit = nn.ClassNLLCriterion()
 local mse_crit = nn.MSECriterion()
-function model.prep_grads(mb_size,outputs,actions,probs,R,prev_grads)
-    local grad = {}
+function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
+    local R = torch.zeros(mb_size,1) 
+    local prev_grad
     local loss = 0
-    local b = outputs[act_factors+2]
-    for a =1,act_factors do
-        loss = loss + nll_crit:forward(outputs[a],actions[a][{{},1}])
-        grad[a] = nll_crit:backward(outputs[a],actions[a][{{},1}]):clone()
-        grad[a]:cmul((R-b):repeatTensor(1,grad[a]:size()[2]))
-        --importance sampling
-        local cur_prob = outputs[a]:gather(2,actions[a]:long()):exp()
-        cur_prob:cdiv(probs[{{},a}]):cmin(10) --truncated IS
-        grad[a]:cmul(cur_prob:repeatTensor(1,grad[a]:size()[2]))
-        --]]
+    for t = last_step,1,-1 do
+        local cur_size = data[t].reward:size()[1]
+        R[{{1,cur_size}}] = R[{{1,cur_size}}] + data[t].reward
+        local grad = {}
+        local b = outputs[t][act_factors+2]
+        for a =1,act_factors do
+            loss = loss + nll_crit:forward(outputs[t][a],data[t].action[a][{{},1}])
+            grad[a] = nll_crit:backward(outputs[t][a],data[t].action[a][{{},1}]):clone()
+            grad[a]:cmul((R[{{1,cur_size}}]-b):repeatTensor(1,grad[a]:size()[2]))
+            --importance sampling
+            local cur_prob = outputs[t][a]:gather(2,data[t].action[a]:long()):exp()
+            cur_prob:cdiv(data[t].prob[{{},a}]):cmin(10) --truncated IS
+            grad[a]:cmul(cur_prob:repeatTensor(1,grad[a]:size()[2]))
+            --]]
+        end
+        grad[act_factors+1] = torch.zeros(cur_size,num_hid)
+        --recurrent
+        if prev_grads then
+            grad[act_factors+1][{{1,prev_grads[2]:size()[1]},{}}] = prev_grads[2]
+        end
+        --baseline
+        loss = loss + mse_crit:forward(b,R[{{1,cur_size}}])
+        grad[act_factors+2] = mse_crit:backward(b,R[{{1,cur_size}}]):mul(base_lr)
+        prev_grad = net_clones[t]:backward(states[t],grad)
     end
-    grad[act_factors+1] = torch.zeros(mb_size,num_hid)
-    --recurrent
-    if prev_grads then
-        grad[act_factors+1][{{1,prev_grads[2]:size()[1]},{}}] = prev_grads[2]
-    end
-    --baseline
-    loss = loss + mse_crit:forward(b,R)
-    grad[act_factors+2] = mse_crit:backward(b,R):mul(base_lr)
-    return loss,grad
+    return loss
 end
 
 function model.sample_actions(outputs)
