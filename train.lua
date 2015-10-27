@@ -11,7 +11,7 @@ require 'nngraph'
 require 'optim'
 require 'math'
 replay = require 'replay'
-model = require 'model.rec_softmax_RE'
+model = require 'model.rec_softmax_DPG'
 local profile = false
 if profile then
     ProFi = require 'ProFi'
@@ -92,6 +92,14 @@ for iter = 1,max_iter do
     local term = false
     local state = env.init()
     local rec_state = model.prep_rec_state(1)
+
+    local  print_q = false
+    --[[
+    if torch.rand(1)[1] < .01 then
+        print_q = true
+        print('start:')
+    end
+    --]]
     while t<max_steps and not term do
         t = t + 1
         local total_state = {state}
@@ -99,6 +107,9 @@ for iter = 1,max_iter do
             table.insert(total_state,rec_state[e])
         end
         local outputs = network:forward(total_state)
+        if print_q then
+            print(outputs[4][1][1])
+        end
         local actions,probs = model.sample_actions(outputs)
         prob_hist[t] = probs:clone()
         if env.force_actions then

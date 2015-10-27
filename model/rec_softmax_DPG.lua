@@ -8,7 +8,7 @@ require 'nn'
 local model = {} 
 local num_dim,num_actions,act_factors
 local num_hid = 7
-local gamma = .99
+local gamma = .7
 function model.create(n_d,n_act)
     num_dim = n_d
     num_actions = n_act
@@ -73,13 +73,16 @@ function model.prep_td(reward,outputs)
 end
 --]]
 local mse_crit = nn.MSECriterion()
+--local use_td = true
 function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
+    local R = torch.zeros(mb_size,1) 
     local prev_grad
     local loss = 0
     local cur_size = 0
     for t = last_step,1,-1 do
         local new_term = data[t].reward:size()[1] - cur_size
         cur_size = data[t].reward:size()[1]
+        R[{{1,cur_size}}] = R[{{1,cur_size}}] + data[t].reward
         local grad = {}
         --TODO: cache this; act outpools recieve no external gradients
         for a =1,act_factors do
@@ -96,8 +99,13 @@ function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
         if prev_grads then
             grad[act_factors+1][{{1,cur_size},{}}] = prev_grads[2][{{1,cur_size},{}}]
         end
-        loss = loss + mse_crit:forward(q,q_target)
-        grad[act_factors+2] = mse_crit:backward(q,q_target)
+        if use_td then
+            loss = loss + mse_crit:forward(q,q_target)
+            grad[act_factors+2] = mse_crit:backward(q,q_target)
+        else
+            loss = loss + mse_crit:forward(q,R[{{1,cur_size}}])
+            grad[act_factors+2] = mse_crit:backward(q,R[{{1,cur_size}}])
+        end
         prev_grad = net_clones[t]:backward(states[t],grad)
     end
     return loss

@@ -59,6 +59,8 @@ end
 
 local nll_crit = nn.ClassNLLCriterion()
 local mse_crit = nn.MSECriterion()
+local td_base = true
+local gamma = .7
 function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
     local R = torch.zeros(mb_size,1) 
     local prev_grad
