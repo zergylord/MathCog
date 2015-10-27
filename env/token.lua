@@ -1,6 +1,6 @@
 local env = {}
-local task = require 'env.task.add'
---local task = require 'env.task.count_list'
+--local task = require 'env.task.add'
+local task = require 'env.task.count_list'
 
 local max_add = 10
 --add token, subtract token, do nothing

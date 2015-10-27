@@ -11,12 +11,13 @@ require 'nngraph'
 require 'optim'
 require 'math'
 replay = require 'replay'
-model = require 'model.rec_softmax_DPG'
+model = require 'model.rec_softmax_RE'
 local profile = false
 if profile then
     ProFi = require 'ProFi'
     ProFi:start()
 end
+--env = require 'env.bandit'
 env = require 'env.token'
 --env = require 'env.catch'
 local max_steps,num_dim,num_actions = env.get_hyper()

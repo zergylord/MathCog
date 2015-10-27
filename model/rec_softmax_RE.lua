@@ -59,6 +59,7 @@ end
 
 local nll_crit = nn.ClassNLLCriterion()
 local mse_crit = nn.MSECriterion()
+--TODO:implement these
 local td_base = true
 local gamma = .7
 function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)

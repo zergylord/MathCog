@@ -8,7 +8,7 @@ require 'nn'
 local model = {} 
 local num_dim,num_actions,act_factors
 local num_hid = 7
-local gamma = .8
+local gamma = 1
 local use_td = true
 function model.create(n_d,n_act)
     num_dim = n_d
@@ -31,12 +31,18 @@ function model.create(n_d,n_act)
     local act_pools = {}
     for a=1,act_factors do
         local action = nn.SoftMax()(nn.Linear(num_hid,num_actions[a])(hid))
+        --local action = nn.Linear(num_hid,num_actions[a])(hid)
         table.insert(out_pools,action)
         table.insert(act_pools,action)
     end
     table.insert(out_pools,hid)
     --critic-----------------------
-    local all_actions = nn.JoinTable(2)(act_pools)
+    local all_actions
+    if act_factors > 1 then
+        all_actions = nn.JoinTable(2)(act_pools)
+    else
+        all_actions = act_pools[1]
+    end
     local state_and_action = nn.JoinTable(2)({total_input,all_actions})
     local critic_hid = nn.ReLU()(nn.Linear(num_dim+num_hid+num_actions:sum()*2,num_hid)(state_and_action))
     local q = nn.Linear(num_hid,1)(critic_hid)
@@ -113,13 +119,17 @@ function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
     end
     return loss
 end
-
+local softmax = nn.SoftMax()
 function model.sample_actions(outputs)
     actions = {}
     probs = torch.zeros(act_factors)
     for a = 1,act_factors do
-        actions[a] = torch.multinomial(outputs[a],1)
-        probs[a] = outputs[a][{{},actions[a][1][1]}]
+        local transformed = outputs[a]
+        --local transformed = softmax:forward(outputs[a])
+        --local transformed = softmax:forward(outputs[a] + torch.randn(outputs[a]:size()):mul(1) )
+        actions[a] = torch.multinomial(transformed,1)
+        --_,actions[a] = (transformed + torch.randn(transformed:size()):mul(2) ):max(2)
+        probs[a] = 1
     end
     return actions,probs
 end
