@@ -8,7 +8,8 @@ require 'nn'
 local model = {} 
 local num_dim,num_actions,act_factors
 local num_hid = 7
-local gamma = .7
+local gamma = .8
+local use_td = true
 function model.create(n_d,n_act)
     num_dim = n_d
     num_actions = n_act
@@ -64,21 +65,19 @@ function model.prep_rec_state(mb_size,outputs,actions)
         return act_vec
     end
 end
---[[
-local q_target
-function model.prep_td(reward,outputs)
-    q_target = reward:clone()
-    print(reward:size(),outputs[act_factors+2]:size())
-    q_target:add(outputs[act_factors+2]):mul(gamma)
-end
---]]
 local mse_crit = nn.MSECriterion()
---local use_td = true
 function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
     local R = torch.zeros(mb_size,1) 
     local prev_grad
     local loss = 0
     local cur_size = 0
+    local print_q_target = false
+    --[[
+    if torch.rand(1)[1] < .001 then
+        print_q_target = true
+        print('targets:')
+    end
+    --]]
     for t = last_step,1,-1 do
         local new_term = data[t].reward:size()[1] - cur_size
         cur_size = data[t].reward:size()[1]
@@ -94,6 +93,10 @@ function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
             q_target[{{1,cur_size-new_term},{}}]:
                 add(outputs[t+1][act_factors+2][{{1,cur_size-new_term},{}}]:clone():mul(gamma))
         end
+        if print_q_target then
+            print(q_target)
+        end
+
         --recurrent
         grad[act_factors+1] = torch.zeros(cur_size,num_hid)
         if prev_grads then
