@@ -73,8 +73,6 @@ function model.backward(net_clones,mb_size,last_step,states,outputs,data)
         local b = outputs[t][act_factors+2]
         --action grad-------
         for a =1,act_factors do
-            --teaching mask
-            local mask = data[t].taught:repeatTensor(1,outputs[t][a]:size()[2])
             loss = loss + nll_crit:forward(outputs[t][a],data[t].action[a][{{},1}])
             grad[a] = nll_crit:backward(outputs[t][a],data[t].action[a][{{},1}]):clone()
             grad[a]:cmul((R[{{1,cur_size}}]-b):repeatTensor(1,grad[a]:size()[2]))

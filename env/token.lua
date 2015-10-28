@@ -37,7 +37,11 @@ function env.step(actions)
     local term = false
     local act = actions[1][1][1]
     local say = actions[2][1][1]
-    r,term = task.step(state[1],act,say,prev_said)
+    r,term,teach = task.step(state[1],act,say,prev_said)
+    if teach then
+        act = teach[1][1][1]
+        say = teach[2][1][1]
+    end
     if not term then
         prev_said = say -1
         if act == 1 then --add token
@@ -48,6 +52,6 @@ function env.step(actions)
             state[1][token_ind] = 0
         end
     end
-    return state,r,term
+    return state,r,term,teach
 end
 return env

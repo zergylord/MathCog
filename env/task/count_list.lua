@@ -11,6 +11,7 @@ function task.init(max_a,state)
 end
 --positive reward for each correct next numeral
 --negative reward for incorrect and start over
+--TODO:add teaching here
 function task.step(state,act,say,prev_said)
     timer:reset()
     local term = false

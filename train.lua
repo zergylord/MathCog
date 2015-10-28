@@ -11,7 +11,7 @@ require 'nngraph'
 require 'optim'
 require 'math'
 replay = require 'replay'
-model = require 'model.rec_softmax_RE'
+model = require 'model.teach_rec_softmax_RE'
 local profile = false
 if profile then
     ProFi = require 'ProFi'
