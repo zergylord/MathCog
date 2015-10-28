@@ -72,7 +72,7 @@ function model.prep_rec_state(mb_size,outputs,actions)
     end
 end
 local mse_crit = nn.MSECriterion()
-function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
+function model.backward(net_clones,mb_size,last_step,states,outputs,data)
     local R = torch.zeros(mb_size,1) 
     local prev_grad
     local loss = 0

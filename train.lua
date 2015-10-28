@@ -28,7 +28,7 @@ local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
 local mb_size = 32
-local replay_size = 1000
+local replay_size = 100000
 local burn_in = 500
 replay.init(replay_size)
 --[[
@@ -71,7 +71,7 @@ function feval(x)
         output_hist[t] = outputs
     end
     --backward pass through episode
-    loss = model.prep_grads(net_clones,mb_size,last_step,state_hist,output_hist,data)
+    loss = model.backward(net_clones,mb_size,last_step,state_hist,output_hist,data)
     --clip gradients
     --dw:clamp(-1,1)
     return loss,dw

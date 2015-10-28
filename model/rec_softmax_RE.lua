@@ -62,7 +62,7 @@ local mse_crit = nn.MSECriterion()
 --TODO:implement these
 local td_base = true
 local gamma = .7
-function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
+function model.backward(net_clones,mb_size,last_step,states,outputs,data)
     local R = torch.zeros(mb_size,1) 
     local prev_grad
     local loss = 0
@@ -71,7 +71,10 @@ function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
         R[{{1,cur_size}}] = R[{{1,cur_size}}] + data[t].reward
         local grad = {}
         local b = outputs[t][act_factors+2]
+        --action grad-------
         for a =1,act_factors do
+            --teaching mask
+            local mask = data[t].taught:repeatTensor(1,outputs[t][a]:size()[2])
             loss = loss + nll_crit:forward(outputs[t][a],data[t].action[a][{{},1}])
             grad[a] = nll_crit:backward(outputs[t][a],data[t].action[a][{{},1}]):clone()
             grad[a]:cmul((R[{{1,cur_size}}]-b):repeatTensor(1,grad[a]:size()[2]))
@@ -81,8 +84,8 @@ function model.prep_grads(net_clones,mb_size,last_step,states,outputs,data)
             grad[a]:cmul(cur_prob:repeatTensor(1,grad[a]:size()[2]))
             --]]
         end
-        grad[act_factors+1] = torch.zeros(cur_size,num_hid)
         --recurrent
+        grad[act_factors+1] = torch.zeros(cur_size,num_hid)
         if prev_grads then
             grad[act_factors+1][{{1,prev_grads[2]:size()[1]},{}}] = prev_grads[2]
         end
