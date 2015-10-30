@@ -101,6 +101,11 @@ for iter = 1,max_iter do
         print('start:')
     end
     --]]
+    local print_actions = false
+    if torch.rand(1)[1] < .002 then
+        print_actions = true
+        print('start:')
+    end
     while t<max_steps and not term do
         t = t + 1
         local total_state = {state}
@@ -115,6 +120,9 @@ for iter = 1,max_iter do
         prob_hist[t] = probs:clone()
         if env.force_actions then
             actions = env.force_actions() or actions
+        end
+        if print_actions then
+            print(actions[2][1][1],probs[2])
         end
         rec_state = model.prep_rec_state(1,outputs,actions)
 
