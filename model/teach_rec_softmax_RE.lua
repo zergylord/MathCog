@@ -80,7 +80,7 @@ function model.backward(net_clones,mb_size,last_step,states,outputs,data)
     for t = last_step,1,-1 do
         local cur_size = data[t].reward:size()[1]
         --TODO:replace with actual taught field
-        data[t].taught = torch.rand(cur_size,1):gt(.05)
+        --data[t].taught = torch.rand(cur_size,1):gt(.05)
         R[{{1,cur_size}}] = R[{{1,cur_size}}] + data[t].reward
         local grad = {}
         local b = outputs[t][act_factors+2]
@@ -102,10 +102,9 @@ function model.backward(net_clones,mb_size,last_step,states,outputs,data)
                 local act_mask = data[t].taught:repeatTensor(1,act_size)
                 local masked_out = outputs[t][a][act_mask]:reshape(num_masked,act_size)
                 local act_vec = torch.zeros(num_masked,act_size)
-                local masked_target = act_vec:scatter(2,
-                    data[t].action[a][ele_mask]:reshape(num_masked,1):long(),1)
-                loss = loss + mse_crit:forward(masked_out,masked_target)
-                grad[a][act_mask] = grad[a][act_mask] + mse_crit:backward(masked_out,masked_target) 
+                local target = data[t].target[a][ele_mask]
+                loss = loss + nll_crit:forward(masked_out,target)
+                grad[a][act_mask] = grad[a][act_mask] + nll_crit:backward(masked_out,target) 
             end
         end
         --recurrent

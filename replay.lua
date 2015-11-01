@@ -10,8 +10,9 @@ function replay.init(r_size)
 end
 local worst_val = 1/0
 local worst_ind = 1
+--adds episode data to table of episodes
 --each *_hist var should be a tensor of dim <time,data size>
-function replay.add_episode(state_hist,action_hist,prob_hist,reward_hist)
+function replay.add_episode(state_hist,action_hist,prob_hist,reward_hist,target_hist)
     replay_index = (replay_index % replay_size) + 1
     --[[insert the best----
     if #replay_table > replay_index then
@@ -30,11 +31,21 @@ function replay.add_episode(state_hist,action_hist,prob_hist,reward_hist)
         replay_table[replay_index].actions[a] = action_hist[a]:clone()
     end
     replay_table[replay_index].probs = prob_hist:clone()
+    replay_table[replay_index].targets = {}
+    for t = 1,reward_hist:size()[1] do
+        if target_hist[t] then
+            replay_table[replay_index].targets[t] = {}
+            for a = 1,#action_hist do
+                replay_table[replay_index].targets[t][a] = target_hist[t][a]:clone()
+            end
+        end
+    end
     --print('hist:',action_hist,prob_hist,reward_hist)
     replay_table[replay_index].rewards = reward_hist:clone()
     replay_table[replay_index].length = state_hist:size()[1]
 end
 
+--concatenates selected episodes' data together, s.t. its time indexed 
 function replay.get_minibatch(mb_size)
     local episodes = {}
     local indices = torch.zeros(mb_size) 
@@ -60,6 +71,14 @@ function replay.get_minibatch(mb_size)
                 end
                 episodes[j].reward = entry.rewards[{{j}}]
                 episodes[j].prob = entry.probs[{{j}}]
+                episodes[j].taught = torch.zeros(1):byte()
+                if entry.targets[j] then
+                    episodes[j].taught[1] = 1
+                    episodes[j].target = {}
+                    for a=1,#entry.actions do
+                        episodes[j].target[a] = entry.targets[j][a]
+                    end
+                end
             else
                 episodes[j].state = episodes[j].state:cat(entry.states[{{j}}],1)
                 for a=1,#entry.actions do
@@ -67,6 +86,14 @@ function replay.get_minibatch(mb_size)
                 end
                 episodes[j].reward = episodes[j].reward:cat(entry.rewards[{{j}}],1)
                 episodes[j].prob = episodes[j].prob:cat(entry.probs[{{j}}],1)
+                if entry.targets[j] then
+                    episodes[j].taught = episodes[j].taught:cat(torch.ones(1):byte())
+                    for a=1,#entry.actions do
+                        episodes[j].target[a] = episodes[j].target[a]:cat(entry.targets[j][a],1)
+                    end
+                else
+                    episodes[j].taught = episodes[j].taught:cat(torch.zeros(1):byte())
+                end
             end
         end
     end

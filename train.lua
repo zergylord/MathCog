@@ -84,6 +84,7 @@ local cum = 0
 for iter = 1,max_iter do
     local state_hist = torch.zeros(max_steps,num_dim)
     local action_hist = {}
+    local target_hist = {}
     for a =1,(#num_actions)[1] do
         action_hist[a] = torch.zeros(max_steps,1)
     end
@@ -127,8 +128,14 @@ for iter = 1,max_iter do
         rec_state = model.prep_rec_state(1,outputs,actions)
 
         state_hist[t] = state
+        local teach_step = false
+        if torch.rand(1)[1] < .1 then
+            teach_step = true
+        end
+        target_hist[t] = {}
         for a=1,(#num_actions)[1] do
             action_hist[a][t] = actions[a] 
+            target_hist[t][a] = actions[a] 
         end
         state,r,term = env.step(actions)
         reward_hist[t] = r
@@ -137,7 +144,11 @@ for iter = 1,max_iter do
     for a =1,(#num_actions)[1] do
         action_hist[a] = action_hist[a][{{1,t},{}}]
     end
-    replay.add_episode(state_hist[{{1,t},{}}],action_hist,prob_hist[{{1,t},{}}],reward_hist[{{1,t},{}}])
+    --local target_hist = action_hist
+    replay.add_episode(state_hist[{{1,t},{}}],
+                        action_hist,prob_hist[{{1,t},{}}],
+                        reward_hist[{{1,t},{}}],
+                        target_hist)
     if iter >= burn_in then
         _,cur_loss = optim.rmsprop(feval,w,optim_state)
         net_loss = net_loss + cur_loss[1]
