@@ -102,10 +102,13 @@ function model.backward(net_clones,mb_size,last_step,states,outputs,data)
                 local act_mask = data[t].taught:repeatTensor(1,act_size)
                 local masked_out = outputs[t][a][act_mask]:reshape(num_masked,act_size)
                 local act_vec = torch.zeros(num_masked,act_size)
-                local target = data[t].target[a][ele_mask]
-                loss = loss + nll_crit:forward(masked_out,target)
-                grad[a][act_mask] = grad[a][act_mask] + nll_crit:backward(masked_out,target) 
+                local target = data[t].target[a]
+                loss = loss + nll_crit:forward(masked_out,target[{{},1}])
+                grad[a][act_mask] = grad[a][act_mask] + nll_crit:backward(masked_out,target[{{},1}]) 
+                --just supervised
+                --grad[a][act_mask] = nll_crit:backward(masked_out,target[{{},1}]) 
             end
+            --]]
         end
         --recurrent
         grad[act_factors+1] = torch.zeros(cur_size,num_hid)

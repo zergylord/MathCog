@@ -128,16 +128,24 @@ for iter = 1,max_iter do
         rec_state = model.prep_rec_state(1,outputs,actions)
 
         state_hist[t] = state
+        --[[
         local teach_step = false
         if torch.rand(1)[1] < .1 then
             teach_step = true
         end
-        target_hist[t] = {}
+        if teach_step then
+            target_hist[t] = {}
+        end
+        -]]
         for a=1,(#num_actions)[1] do
             action_hist[a][t] = actions[a] 
-            target_hist[t][a] = actions[a] 
+            --[[
+            if teach_step then
+                target_hist[t][a] = actions[a] 
+            end
+            -]]
         end
-        state,r,term = env.step(actions)
+        state,r,term,target_hist[t] = env.step(actions)
         reward_hist[t] = r
         cum = cum + r[1][1]
     end

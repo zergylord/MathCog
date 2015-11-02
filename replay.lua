@@ -88,8 +88,16 @@ function replay.get_minibatch(mb_size)
                 episodes[j].prob = episodes[j].prob:cat(entry.probs[{{j}}],1)
                 if entry.targets[j] then
                     episodes[j].taught = episodes[j].taught:cat(torch.ones(1):byte())
-                    for a=1,#entry.actions do
-                        episodes[j].target[a] = episodes[j].target[a]:cat(entry.targets[j][a],1)
+                    --first target not always first step!
+                    if not episodes[j].target then
+                        episodes[j].target = {}
+                        for a=1,#entry.actions do
+                            episodes[j].target[a] = entry.targets[j][a]
+                        end
+                    else
+                        for a=1,#entry.actions do
+                            episodes[j].target[a] = episodes[j].target[a]:cat(entry.targets[j][a],1)
+                        end
                     end
                 else
                     episodes[j].taught = episodes[j].taught:cat(torch.zeros(1):byte())
