@@ -16,25 +16,35 @@ function model.create(n_d,n_act)
     act_factors = (#num_actions)[1] 
     local input = nn.Identity()()
     local last_hid = nn.Identity()()
-    local pools = {}
-    table.insert(pools,input)
-    table.insert(pools,last_hid)
+    local in_pools = {}
+    table.insert(in_pools,input)
+    local to_join = {}
+    table.insert(to_join,input)
+    table.insert(to_join,last_hid)
     --actor---------------------
     for a=1,act_factors do
-        table.insert(pools,nn.Identity()())
+        local act_in = nn.Identity()()
+        table.insert(in_pools,act_in)
+        table.insert(to_join,act_in)
     end
 
-    local total_input = nn.JoinTable(2)(pools)
+    local total_input = nn.JoinTable(2)(to_join)
     local hid = nn.ReLU()(nn.Linear(num_dim+num_hid+num_actions:sum(),num_hid)(total_input))
 
     local out_pools = {}
     local act_pools = {}
+    local det_action= {}
     for a=1,act_factors do
-        local action = nn.SoftMax()(nn.Linear(num_hid,num_actions[a])(hid))
-        --local action = nn.Linear(num_hid,num_actions[a])(hid)
+        --local det_action = nn.SoftMax()(nn.Linear(num_hid,num_actions[a])(hid))
+        local det_action = nn.Linear(num_hid,num_actions[a])(hid)
+        --local det_action = nn.ReLU()(nn.Linear(num_hid,num_actions[a])(hid))
+        local noise = nn.Identity()()
+        local action = nn.CAddTable(){noise,det_action}
+        table.insert(in_pools,noise)
         table.insert(out_pools,action)
         table.insert(act_pools,action)
     end
+    table.insert(in_pools,last_hid)
     table.insert(out_pools,hid)
     --critic-----------------------
     local all_actions
@@ -48,13 +58,16 @@ function model.create(n_d,n_act)
     local q = nn.Linear(num_hid,1)(critic_hid)
     table.insert(out_pools,q)
 
-    local network = nn.gModule(pools,out_pools)
+    local network = nn.gModule(in_pools,out_pools)
     return network
 end
+local noise_scale = 1
 function model.prep_rec_state(mb_size,outputs,actions)
     local act_vec = {}
     for a = 1,act_factors do
         act_vec[a] = torch.zeros(mb_size,num_actions[a])
+        --noise
+        act_vec[a+act_factors] = torch.randn(mb_size,num_actions[a]):mul(noise_scale)
     end
     if not outputs then --init rec state
         table.insert(act_vec,1,torch.zeros(mb_size,num_hid))
@@ -124,8 +137,8 @@ function model.sample_actions(outputs)
     actions = {}
     probs = torch.zeros(act_factors)
     for a = 1,act_factors do
-        local transformed = outputs[a]
-        --local transformed = softmax:forward(outputs[a])
+        --local transformed = outputs[a]
+        local transformed = softmax:forward(outputs[a])
         --local transformed = softmax:forward(outputs[a] + torch.randn(outputs[a]:size()):mul(1) )
         actions[a] = torch.multinomial(transformed,1)
         --_,actions[a] = (transformed + torch.randn(transformed:size()):mul(2) ):max(2)

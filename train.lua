@@ -11,14 +11,15 @@ require 'nngraph'
 require 'optim'
 require 'math'
 replay = require 'replay'
-model = require 'model.teach_rec_softmax_RE'
+model = require 'model.rec_softmax_DPG'
+--model = require 'model.rec_softmax_RE'
 local profile = false
 if profile then
     ProFi = require 'ProFi'
     ProFi:start()
 end
---env = require 'env.bandit'
-env = require 'env.token'
+env = require 'env.bandit'
+--env = require 'env.token'
 --env = require 'env.catch'
 local max_steps,num_dim,num_actions = env.get_hyper()
 network = model.create(num_dim,num_actions)
@@ -27,9 +28,9 @@ network:zeroGradParameters()
 local net_clones = util.clone_many_times(network,max_steps)
 
 local timer = torch.Timer()
-local mb_size = 32
-local replay_size = 100000
-local burn_in = 500
+local mb_size = 1
+local replay_size = 1
+local burn_in = 5
 replay.init(replay_size)
 --[[
 for i=1,150 do
@@ -76,7 +77,7 @@ function feval(x)
     --dw:clamp(-1,1)
     return loss,dw
 end
-local optim_state = {learningRate = 1e-4}
+local optim_state = {learningRate = 1e-5}
 local max_iter = 1e6
 local net_loss = 0
 local r = 0
@@ -103,10 +104,12 @@ for iter = 1,max_iter do
     end
     --]]
     local print_actions = false
+    --[[
     if torch.rand(1)[1] < .002 then
         print_actions = true
         print('start:')
     end
+    --]]
     while t<max_steps and not term do
         t = t + 1
         local total_state = {state}
@@ -128,22 +131,8 @@ for iter = 1,max_iter do
         rec_state = model.prep_rec_state(1,outputs,actions)
 
         state_hist[t] = state
-        --[[
-        local teach_step = false
-        if torch.rand(1)[1] < .1 then
-            teach_step = true
-        end
-        if teach_step then
-            target_hist[t] = {}
-        end
-        -]]
         for a=1,(#num_actions)[1] do
             action_hist[a][t] = actions[a] 
-            --[[
-            if teach_step then
-                target_hist[t][a] = actions[a] 
-            end
-            -]]
         end
         state,r,term,target_hist[t] = env.step(actions)
         reward_hist[t] = r
